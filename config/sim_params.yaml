@@ -1,0 +1,107 @@
+# =============================================================================
+# radar-imu-fusion simulation & filter configuration
+#
+# World frame:  ENU  (x = East, y = North, z = Up), right-handed.
+# Body frame:   x = forward, y = left, z = up (vehicle/IMU frame), right-handed.
+# Quaternion:   Hamilton convention, stored as [w, x, y, z], q rotates a body
+#               vector into the world frame: v_world = R(q) @ v_body.
+# =============================================================================
+
+seed: 42                       # global RNG seed for reproducibility
+
+# ---------------------------------------------------------------------------
+# Ground-truth trajectory generator
+# ---------------------------------------------------------------------------
+trajectory:
+  duration_s: 120.0            # total trajectory length
+  rate_hz: 1000.0              # ground-truth sampling rate
+  cruise_speed_mps: 15.0       # nominal highway-like cruise speed
+  accel_mps2: 2.0              # magnitude used for accel / brake phases
+  turn_radii_m: [50.0, 90.0, 140.0, 200.0]   # candidate turn radii, alternating L/R
+  elevation_amplitude_m: 5.0   # peak-to-peak-ish elevation undulation
+  gravity_mps2: 9.81           # magnitude of gravity, acts along -z (world Up)
+
+# ---------------------------------------------------------------------------
+# IMU simulator (200 Hz)
+# ---------------------------------------------------------------------------
+imu:
+  rate_hz: 200.0
+  accel_noise_density: 0.1         # sigma_a  [m/s^2], white noise on specific force
+  gyro_noise_density: 0.01         # sigma_g  [rad/s], white noise on angular rate
+  accel_bias_random_walk: 0.001    # sigma_ba [m/s^2 / sqrt(s)]
+  gyro_bias_random_walk: 0.0001    # sigma_bg [rad/s / sqrt(s)]
+  init_accel_bias: [0.05, -0.03, 0.02]     # m/s^2
+  init_gyro_bias: [0.001, -0.002, 0.0015]  # rad/s
+
+# ---------------------------------------------------------------------------
+# Radar simulator (13 Hz, forward FMCW)
+# ---------------------------------------------------------------------------
+radar:
+  rate_hz: 13.0
+  fov_azimuth_deg: 60.0        # +/- half-angle
+  fov_elevation_deg: 15.0      # +/- half-angle
+  range_min_m: 5.0
+  range_max_m: 200.0
+  n_static_landmarks: 500      # static reflectors scattered along the corridor
+  n_moving_objects: 4          # other vehicles with independent motion
+  sigma_range_m: 0.05          # range noise (radar range is precise)
+  sigma_azimuth_deg: 1.5       # azimuth noise (angle is coarse)
+  sigma_elevation_deg: 2.0     # elevation noise
+  sigma_doppler_mps: 0.1       # Doppler / radial-velocity noise (precise)
+  clutter_probability: 0.05    # fraction of detections replaced by clutter
+  missed_detection_probability: 0.10
+  # extrinsics: body -> radar
+  R_body_to_radar: [[1,0,0],[0,1,0],[0,0,1]]   # boresight aligned with body x (forward)
+  t_body_to_radar: [2.0, 0.0, 0.3]             # meters, front bumper mount
+
+# ---------------------------------------------------------------------------
+# Camera simulator (30 Hz, forward pinhole)
+# ---------------------------------------------------------------------------
+camera:
+  rate_hz: 30.0
+  image_width: 1920
+  image_height: 1200
+  fx: 800.0
+  fy: 800.0
+  cx: 960.0
+  cy: 600.0
+  sigma_pixel: 1.0              # pixel noise, sigma_uv
+  # extrinsics: body -> camera (camera: x=right, y=down, z=forward)
+  R_body_to_cam: [[0,-1,0],[0,0,-1],[1,0,0]]
+  t_body_to_cam: [2.2, 0.0, 0.5]
+
+# ---------------------------------------------------------------------------
+# GNSS simulator (5 Hz, used for comparison / fallback / dropout demo)
+# ---------------------------------------------------------------------------
+gnss:
+  rate_hz: 5.0
+  sigma_horizontal_m: 1.5
+  sigma_vertical_m: 3.0
+  t_body_to_gnss: [0.0, 0.0, 1.5]   # roof-mounted antenna lever arm
+  dropout_start_s: 40.0
+  dropout_end_s: 80.0
+
+# ---------------------------------------------------------------------------
+# ESKF filter tuning
+# ---------------------------------------------------------------------------
+eskf:
+  # initial error-state covariance (1-sigma^2 per block, diagonal)
+  init_std_pos_m: 0.5
+  init_std_vel_mps: 0.1
+  init_std_theta_rad: 0.05
+  init_std_bias_accel: 0.05
+  init_std_bias_gyro: 0.005
+
+  # RANSAC for Doppler ego-velocity (rejects moving-object detections)
+  ransac_iterations: 60
+  ransac_inlier_threshold_mps: 0.3
+  ransac_min_inliers: 6
+
+  # radar landmark association gate (Mahalanobis-ish, meters in range)
+  radar_landmark_gate_m: 3.0
+  camera_landmark_gate_px: 15.0
+
+  # per-frame feature budgets (realistic: real VO/radar-SLAM stacks cap the
+  # number of features tracked per frame for compute reasons too)
+  max_camera_features_per_frame: 40
+  max_radar_landmark_updates_per_frame: 20
