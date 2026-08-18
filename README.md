@@ -41,10 +41,10 @@ provides, and it's the centerpiece of this project.
       │             │  landmark, │  landmark)│
       │             │  polar)    │           │
       ▼             ▼            ▼           ▼
-   ┌─────────────────────────────────────────────--──┐
-   │                Error-State KF                   │
-   │  nominal: p, v, q, b_a, b_g   (16)              │
-   │  error:   δp, δv, δθ, δb_a, δb_g  (15, tangent)│
+   ┌─────────────────────────────────────────────---──┐
+   │                Error-State KF                    │
+   │  nominal: p, v, q, b_a, b_g   (16)               │
+   │  error:   δp, δv, δθ, δb_a, δb_g  (15, tangent)  │
    └───────────────────-┬─────────────────────────────┘
                         ▼
               State estimate + covariance
