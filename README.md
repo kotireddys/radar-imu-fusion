@@ -1,20 +1,18 @@
 # radar-imu-fusion
 
-Radar-centric sensor fusion for autonomous vehicle state estimation: a from-scratch
+Radar-centric sensor fusion for autonomous vehicle state estimation: from scratch
 **Error-State Kalman Filter (ESKF)** fusing **radar Doppler ego-velocity + radar
 landmark detections + IMU + camera bearings**, with GNSS available as a fallback /
 comparison sensor. Pure Python/NumPy, no ROS dependency.
 
-This is a portfolio project built to demonstrate the specific skill set that matters
-for radar-first autonomy stacks: polar measurement models, Doppler-based ego-motion
-with RANSAC outlier rejection, error-state (manifold) filtering on SO(3), and honest
-filter-consistency evaluation (NEES).
+This is a portfolio project that matters for radar-first autonomy stacks: polar measurement models, Doppler-based ego-motion
+with RANSAC outlier rejection, error-state (manifold) filtering on SO(3), and honest filter-consistency evaluation (NEES).
 
 ## Why radar-centric?
 
 Cameras lose bearing precision with range and fail in fog/rain/darkness. LiDAR is
 expensive and also degrades in weather. Radar is comparatively cheap, sees through
-weather, and — critically — measures **Doppler (radial velocity) directly**, which
+weather, and critically measures **Doppler (radial velocity) directly**, which
 means a single radar frame with enough static detections can solve for the vehicle's
 full 3D ego-velocity without any position fix at all. That's a fundamentally
 different (and complementary) source of information than what a camera or GNSS
@@ -95,20 +93,20 @@ then `δx ← 0` and `P ← G·P·Gᵀ` with `G = I − blkdiag(0, 0, [δθ/2×]
 | Sensor | z | h(x) | Notes |
 |---|---|---|---|
 | Radar Doppler | `d_i` per detection | `−êᵢᵀ·R_br·Rᵀ·v` | RANSAC first rejects moving-object/clutter detections; only inliers enter the stacked update. `H` includes the `δθ` cross-term since `R` appears in `h`. |
-| Radar landmark | `[range, az, el]` | polar transform of a known landmark | Kept in **polar**, not Cartesian — see below. |
+| Radar landmark | `[range, az, el]` | polar transform of a known landmark | Kept in **polar**, not Cartesian - see below. |
 | Camera bearing | `[u, v]` pixels | pinhole projection | Standard `[fx/z, 0, −fx·x/z²; ...]` Jacobian. |
 | GNSS | `p_meas` | `p + R·t_bg` | Lever-arm-corrected absolute position. |
 
 ## Why polar measurement models for radar?
 
-Radar directly measures range, azimuth, and Doppler — noise is naturally **diagonal
+Radar directly measures range, azimuth, and Doppler - noise is naturally **diagonal
 in polar coordinates** (`σ_r ≈ 0.05 m`, `σ_az ≈ 1.5°`). Converting a detection to
 Cartesian `(x, y, z)` and then treating the noise as circular/diagonal there is
 wrong: azimuth uncertainty scales *with range* (arc length = `r·σ_az`), producing a
-**range-dependent, rotated ("banana-shaped") ellipse** in Cartesian — tight along the
+**range-dependent, rotated ("banana-shaped") ellipse** in Cartesian - tight along the
 line of sight, loose across it. At 50 m with `σ_az = 1.5°`, that's ~5 cm along range
 vs. ~1.3 m across range: a 25× anisotropy a single Cartesian covariance can't
-represent cleanly. Working directly in polar keeps `R_meas` exactly diagonal and the
+represent cleanly. Working directly in polar keeps `R_meas` exactly diagonal, and the
 Jacobian is a standard, well-conditioned Cartesian→polar transform. See
 `results/09_polar_vs_cartesian_noise.png`.
 
@@ -117,7 +115,7 @@ Jacobian is a standard, well-conditioned Cartesian→polar transform. See
 Running the `radar_doppler`-only scenario surfaces something worth stating plainly:
 **a single Doppler radar frame constrains only the body-frame velocity `R^T·v`, never
 `R` and `v` separately.** For *any* rotation error `δθ`, choosing
-`δv = −R·[R^Tv ×]·δθ` leaves every Doppler residual unchanged — an exact gauge
+`δv = −R·[R^Tv ×]·δθ` leaves every Doppler residual unchanged - an exact gauge
 freedom, not just "weak" observability. Concretely: a body-mounted Doppler sensor is
 a very good speedometer, but a speedometer alone cannot tell you which way you're
 facing.
@@ -125,13 +123,13 @@ facing.
 The consequence shows up directly in the results: `radar_doppler` yaw error grows to
 ~1.7 rad over 120 s (see `results/04_orientation_error_radar_doppler.png`), and the
 NEES plot for that scenario (`results/06_nees_radar_doppler.png`) is badly
-inconsistent — the covariance collapses along the unobservable direction, a
+inconsistent; the covariance collapses along the unobservable direction, a
 well-documented EKF pathology for gauge-symmetric measurements (see Huang/Mourikis/
 Roumeliotis on observability-constrained EKF for the visual-inertial analogue). This
 is *expected*, physically correct, and exactly why real Doppler-radar systems always
 pair it with an absolute heading/position reference. The moment landmark position
 fixes are added (`radar_full`), the gauge freedom is broken, yaw locks on, and both
-accuracy and NEES become well-behaved — see the comparison in the results table
+accuracy and NEES become well-behaved - see the comparison in the results table
 below.
 
 ## Project structure
@@ -141,7 +139,7 @@ radar-imu-fusion/
 ├── config/sim_params.yaml       # every tunable parameter, with units/meaning
 ├── src/
 │   ├── trajectory.py            # ground-truth 3D trajectory generator
-│   ├── sensors/{imu,radar,camera,gnss}.py
+│   ├── sensors/{imu, radar, camera,gnss}.py
 │   ├── filters/{eskf,measurement_models,lie_group}.py
 │   ├── utils/{rotations,plotting}.py
 │   └── run_fusion.py            # main entry point
@@ -171,7 +169,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/ -v
 ```
 
 Scenarios (`--scenario`): `imu_only`, `imu_gnss`, `radar_doppler`, `radar_full`
-(Doppler + landmark, i.e. radar-only navigation), `full_fusion` (+ camera),
+(Doppler + landmark, i.e., radar-only navigation), `full_fusion` (+ camera),
 `gnss_dropout` (full fusion with a 40–80 s GNSS blackout), or `all`.
 
 ## Results
@@ -192,31 +190,31 @@ fair comparison.
 
 Takeaways, in order:
 
-1. **IMU-only dead reckoning is useless past a few seconds** — 4.5 km of drift over
+1. **IMU-only dead reckoning is useless past a few seconds** - 4.5 km of drift over
    120 s, as expected for MEMS-grade bias/noise with nothing to correct it
    (`results/01_trajectory_comparison.png`, `results/02_position_error_imu_only.png`).
 2. **Doppler-only aiding cuts drift ~5×** (4488 m → 859 m) purely by constraining
-   velocity magnitude, even though (per above) it cannot fix heading — a genuinely
+   velocity magnitude, even though (per above) it cannot fix heading - a genuinely
    useful partial correction, and a clean illustration of the difference between
    "reduces drift" and "bounds error."
 3. **Adding known-landmark radar position fixes (`radar_full`) collapses error to
-   centimeters** — this is "radar-only navigation": no camera, no GNSS, just Doppler
+   centimeters** - this is "radar-only navigation": no camera, no GNSS, just Doppler
    + polar landmark ranging.
 4. **Full fusion (+ camera) is the tightest**, and critically, **survives a 40 s GNSS
-   blackout with no visible degradation** (`results/08_gnss_dropout.png`) — radar and
+   blackout with no visible degradation** (`results/08_gnss_dropout.png`) - radar and
    camera fully cover for the missing GNSS.
 5. **Bias estimation converges** from a cold start (filter initialized at zero bias)
    toward the true random-walk bias trajectory within seconds
    (`results/05_bias_estimation_full_fusion.png`).
 6. **RANSAC cleanly separates static-world Doppler inliers from moving-object/clutter
-   outliers** — see the tight ±3σ inlier band vs. the widely-scattered rejected
+   outliers** - see the tight ±3σ inlier band vs. the widely-scattered rejected
    points, including two clearly visible moving-vehicle Doppler tracks, in
    `results/07_doppler_residuals_full_fusion.png`.
 7. **NEES** (`results/06_nees_*.png`) is bounded and reasonable for every fully
    observable scenario, and dramatically, instructively inconsistent for
-   `radar_doppler`-only — see the discussion above.
+   `radar_doppler`-only - see the discussion above.
 
-Regenerate all plots (they are not tracked as "final"/frozen — rerun any time):
+Regenerate all plots (they are not tracked as "final"/frozen - rerun any time):
 
 ```bash
 python -m src.run_fusion --scenario all
